@@ -2,6 +2,7 @@ import os
 import time
 import urllib.request
 
+import socket
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -10,7 +11,7 @@ from mediapipe.tasks.python import vision
 
 # ==================== AJUSTES DE LA X ====================
 CAMARA = 0
-FRAMES_NECESARIOS = 10     # Frames seguidos que debe verse la X para activar
+FRAMES_NECESARIOS = 60     # Frames seguidos que debe verse la X para activar
 ANCHO_CM = 7
 ALTO_CM = 7
 PIXELES_POR_CM = 6
@@ -34,6 +35,10 @@ ESPERA_SALTO = 0.7          # segundos mínimos entre saltos
 SEGUNDOS_PREPARACION = 3    # tiempo para colocarte tras detectar la X
 SEGUNDOS_CALIBRACION = 3
 DEBUG = False               # True = imprime x e y de los pies continuamente
+
+# ==================== CONEXIÓN CON UNITY ====================
+UNITY_IP = "127.0.0.1"      # 127.0.0.1 = este mismo PC
+UNITY_PUERTO = 5005         # el mismo que en Unity
 # =============================================================
 
 # ---------- Modelo de MediaPipe ----------
@@ -73,6 +78,12 @@ alto_esperado = ALTO_CM * PIXELES_POR_CM
 kernel = np.ones((3, 3), np.uint8)
 ultimo_hsv = None
 t0 = time.monotonic()
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+def enviar(mensaje):
+    """Manda un mensaje de texto a Unity."""
+    sock.sendto(mensaje.encode("utf-8"), (UNITY_IP, UNITY_PUERTO))
 
 
 # ---------- Funciones de la X ----------
@@ -214,6 +225,7 @@ while True:
                 carril_actual = None
                 estado = "JUGANDO"
                 print("Calibrado. Ya puedes moverte.")
+                enviar("inicio")
 
     # ===== FASE 4: seguir los pies =====
     elif estado == "JUGANDO":
@@ -236,12 +248,14 @@ while True:
             if carril != carril_actual:
                 carril_actual = carril
                 print(carril)
+                enviar(carril)
 
             subida = altura_normal - y_pies
             ahora = time.time()
             if subida > UMBRAL_SALTO and ahora - ultimo_salto > ESPERA_SALTO:
                 ultimo_salto = ahora
                 print("SALTO")
+                enviar("SALTO")
 
             texto = f"Carril: {carril_actual}"
 
@@ -262,6 +276,7 @@ while True:
         frames_seguidos = 0
         color_actual = None
         carril_actual = None
+        enviar("parar")
         print("Reiniciado. Enseña la X para empezar.")
     elif tecla == ord('c'):          # recalibrar sin volver a enseñar la X
         estado = "PREPARANDO"
