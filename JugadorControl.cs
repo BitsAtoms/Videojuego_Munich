@@ -77,6 +77,7 @@ public class JugadorControl : MonoBehaviour
         }
     }
 
+
     public void Iniciar()
     {
         juegoActivo = true;
